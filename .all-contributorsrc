@@ -1,0 +1,24 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "TragicLifeHu",
+      "name": "Tragic Life",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/16817202?v=4",
+      "profile": "https://github.com/TragicLifeHu",
+      "contributions": [
+        "translation"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "pixez-flutter",
+  "projectOwner": "Skimige",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
