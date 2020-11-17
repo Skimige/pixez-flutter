@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    branches: [ ci-test ]
 
 env:
   KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
@@ -44,7 +44,7 @@ jobs:
         flutter test --verbose
 
     - name: Flutter Build AppBundle & ABI
-      run: flutter build apk --verbose --dart-define=IS_GOOGLEPLAY=false
+      run: flutter build apk --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info
 
     - uses: actions/upload-artifact@master
       name: Upload Output Folder
