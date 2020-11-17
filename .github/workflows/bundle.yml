@@ -45,8 +45,8 @@ jobs:
 
     - name: Flutter Build AppBundle & ABI
       run: |
-        flutter build apk --target-platform android-arm,android-arm64,android-x64 --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info
-        flutter build appbundle --target-platform android-arm,android-arm64,android-x64 --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info
+        flutter build apk --target-platform android-arm,android-arm64,android-x64 --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
+        flutter build appbundle --target-platform android-arm,android-arm64,android-x64 --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
 
     # - uses: actions/upload-artifact@master
     #   name: Upload Output Folder
