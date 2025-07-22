@@ -42,7 +42,7 @@ jobs:
 
     - name: Override Dependencies
       run: |
-        GO111MODULE=on sudo go get github.com/mikefarah/yq/v3
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq
         which yq
         
         # Add a temp fix for dio
