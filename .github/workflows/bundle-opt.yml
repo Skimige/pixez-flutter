@@ -42,9 +42,8 @@ jobs:
 
     - name: Override Dependencies
       run: |
-        sudo add-apt-repository ppa:rmescandon/yq -y
-        sudo apt update
-        sudo apt install yq -y
+        GO111MODULE=on sudo go get github.com/mikefarah/yq/v3
+        which yq
         
         # Add a temp fix for dio
         # yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
