@@ -82,9 +82,6 @@ android {
         targetSdk = 35
         versionCode = 10009750
         versionName = "0.9.75 ev"
-        ndk {
-            abiFilters.addAll(arrayOf("armeabi-v7a", "arm64-v8a", "x86_64"))
-        }
     }
     splits {
         abi {
