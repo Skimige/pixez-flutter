@@ -73,7 +73,7 @@ jobs:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       run: |
         OUTPUT="build/app/outputs/apk/release"
-        export name=$(find $OUTPUT -name "app-universal-release.apk")
+        export name=$(find $OUTPUT -name "app-release.apk")
         curl https://api.telegram.org/bot${BOT_TOKEN}/sendDocument -X POST -F chat_id="$CHAT_ID" -F caption="[Fat APK] $GITHUB_SHA" -F document="@$name" > /dev/null
 
     - uses: actions/upload-artifact@v4
@@ -86,4 +86,4 @@ jobs:
       name: Upload Fat APK
       with:
         name: app-release
-        path: build/app/outputs/apk/release/app-universal-release.apk
+        path: build/app/outputs/apk/release/app-release.apk
