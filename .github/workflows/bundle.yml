@@ -65,12 +65,12 @@ jobs:
     - name: Flutter Build AppBundle
       continue-on-error: true
       run: |
-        flutter build appbundle --verbose --dart-define=IS_GOOGLEPLAY=false -Pandroid.debug.obsoleteApi=true
+        flutter build appbundle --verbose --dart-define=IS_GOOGLEPLAY=false
     
     - name: Flutter Build ABI
       continue-on-error: true
       run: |
-        flutter build apk --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false -Pandroid.debug.obsoleteApi=true
+        flutter build apk --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false
 
     - name: Send arm64-v8a variant to me via Telegram
       env:
