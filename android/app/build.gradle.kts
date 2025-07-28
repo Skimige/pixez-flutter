@@ -24,7 +24,7 @@ plugins {
 }
 
 var dartEnvironmentVariables = mutableMapOf(
-    "IS_GOOGLEPLAY" to false
+    "IS_GOOGLEPLAY" to false,
     "BUILD_ABI" to false
 )
 
