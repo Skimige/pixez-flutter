@@ -88,22 +88,22 @@ jobs:
     - name: Flutter Build AppBundle (non-verbose)
       if: github.event.inputs.verbose != 'true'
       continue-on-error: true
-      run: flutter build appbundle --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
+      run: flutter build appbundle --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
 
     - name: Flutter Build AppBundle (verbose)
       if: github.event.inputs.verbose == 'true'
       continue-on-error: true
-      run: flutter build appbundle --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
+      run: flutter build appbundle --verbose --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
 
     - name: Flutter Build ABI (non-verbose)
       if: github.event.inputs.verbose != 'true'
       continue-on-error: true
-      run: flutter build apk --split-per-abi --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
+      run: flutter build apk --split-per-abi --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
 
     - name: Flutter Build ABI (verbose)
       if: github.event.inputs.verbose == 'true'
       continue-on-error: true
-      run: flutter build apk --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false --split-debug-info=
+      run: flutter build apk --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
 
     - name: Send arm64-v8a variant to me via Telegram
       env:

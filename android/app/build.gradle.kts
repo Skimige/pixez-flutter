@@ -25,6 +25,7 @@ plugins {
 
 var dartEnvironmentVariables = mutableMapOf(
     "IS_GOOGLEPLAY" to false
+    "BUILD_ABI" to false
 )
 
 if (project.hasProperty("dart-defines")) {
@@ -47,7 +48,7 @@ if (project.hasProperty("dart-defines")) {
 //        "\\_|    \\\___/\\/   \\\_/\\____/\\_____/\n" +
 //        "                                \n" +
 //        "                                \n")
-println("hey, IS_GOOGLEPLAY=${dartEnvironmentVariables["IS_GOOGLEPLAY"]}")
+println("hey, IS_GOOGLEPLAY=${dartEnvironmentVariables["IS_GOOGLEPLAY"]}; BUILD_ABI=${dartEnvironmentVariables["BUILD_ABI"]}")
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -85,10 +86,10 @@ android {
     }
     splits {
         abi {
-            isEnable = true
+            val buildAbi = dartEnvironmentVariables["BUILD_ABI"] as Boolean
+            isEnable = buildAbi
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
         }
     }
 
