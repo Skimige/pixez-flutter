@@ -81,8 +81,11 @@ android {
         applicationId = packageName
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 10009750
-        versionName = "0.9.75 ev"
+        versionCode = 10009770
+        versionName = "0.9.77 red"
+        ndk {
+            abiFilters.addAll(arrayOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+        }
     }
     splits {
         abi {
@@ -130,17 +133,17 @@ flutter {
 }
 
 dependencies {
+    implementation(project(":androidndkgif"))
     implementation("androidx.core:core-remoteviews:1.1.0")
     implementation("androidx.annotation:annotation:1.9.1")
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 //    implementation project(":weiss")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("io.coil-kt.coil3:coil:3.1.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("com.google.android.material:material:1.13.0")
+    implementation("io.coil-kt.coil3:coil:3.3.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
 //    implementation("androidx.webkit:webkit:1.4.0")
-    implementation("androidx.browser:browser:1.8.0")
-    implementation("io.github.waynejo:androidndkgif:1.0.1")
+    implementation("androidx.browser:browser:1.9.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
-    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.documentfile:documentfile:1.1.0")
 }
