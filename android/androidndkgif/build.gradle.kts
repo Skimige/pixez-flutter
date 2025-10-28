@@ -8,9 +8,6 @@ android {
 
     defaultConfig {
         minSdk = 21
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64", "armeabi-v7a", "x86")
-        }
     }
 
     externalNativeBuild {
