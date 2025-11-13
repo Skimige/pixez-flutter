@@ -8,6 +8,9 @@ android {
 
     defaultConfig {
         minSdk = 21
+        ndk {
+            abiFilters.clear()
+        }
     }
 
     externalNativeBuild {
