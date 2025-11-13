@@ -81,8 +81,11 @@ android {
         applicationId = packageName
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 10009770
-        versionName = "0.9.77 red"
+        versionCode = 10009790
+        versionName = "0.9.79 aa"
+        ndk {
+            abiFilters.clear()
+        }
     }
     splits {
         abi {
