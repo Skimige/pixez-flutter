@@ -27,6 +27,7 @@ import 'package:pixez/i18n.dart';
 import 'package:pixez/lighting/lighting_store.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/models/illust.dart';
+import 'package:pixez/page/picture/illust_store.dart';
 import 'package:waterfall_flow/waterfall_flow.dart';
 
 class WaterFallLoading extends StatefulWidget {
@@ -52,6 +53,7 @@ class LightingList extends StatefulWidget {
   final ScrollController? scrollController;
   final String? portal;
   final bool? ai;
+  final bool Function(Illusts)? filter;
 
   const LightingList(
       {Key? key,
@@ -60,7 +62,8 @@ class LightingList extends StatefulWidget {
       this.isNested,
       this.scrollController,
       this.portal,
-      this.ai})
+      this.ai,
+      this.filter})
       : super(key: key);
 
   @override
@@ -133,8 +136,13 @@ class _LightingListState extends State<LightingList> {
   late EasyRefreshController _refreshController;
 
   Widget _buildWithoutHeader(context) {
-    _store.iStores
-        .removeWhere((element) => element.illusts!.hateByUser(ai: _ai));
+    _store.iStores.removeWhere((element) {
+      if (element.illusts!.hateByUser(ai: _ai)) return true;
+      if (widget.filter != null && !widget.filter!(element.illusts!)) {
+        return true;
+      }
+      return false;
+    });
     return NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification notification) {
           if (widget.isNested == true) {
@@ -276,8 +284,13 @@ class _LightingListState extends State<LightingList> {
 
   SliverChildBuilderDelegate _buildSliverChildBuilderDelegate(
       BuildContext context) {
-    _store.iStores
-        .removeWhere((element) => element.illusts!.hateByUser(ai: _ai));
+    _store.iStores.removeWhere((element) {
+      if (element.illusts!.hateByUser(ai: _ai)) return true;
+      if (widget.filter != null && !widget.filter!(element.illusts!)) {
+        return true;
+      }
+      return false;
+    });
     return SliverChildBuilderDelegate((BuildContext context, int index) {
       return IllustCard(
         lightingStore: _store,
