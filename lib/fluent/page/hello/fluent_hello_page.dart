@@ -31,7 +31,6 @@ class FluentHelloPage extends StatefulWidget {
 }
 
 class _FluentHelloPageState extends State<FluentHelloPage> {
-  final PaneItemExpanderKey _expandedKey = PaneItemExpanderKey();
   final BookmarkPageMethodRelay relay = BookmarkPageMethodRelay();
   bool hideEmail = true;
 
@@ -45,9 +44,9 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
 
     // 跳转到初始化指南页
     if (Prefer.getInt('language_num') == null) {
-      Navigator.of(context).pushReplacement(
-        FluentPageRoute(builder: (context) => GuidePage()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(FluentPageRoute(builder: (context) => GuidePage()));
     }
   }
 
@@ -78,11 +77,9 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                     body: RankPage(),
                   ),
                   PaneItemExpander(
-                    key: _expandedKey,
                     icon: const Icon(FluentIcons.bookmarks),
                     title: Text(I18n.of(context).quick_view),
                     body: const SizedBox.shrink(),
-                    onTap: () => _expandedKey.currentState?.toggleOpen(),
                     items: [
                       PaneItem(
                         icon: const Icon(FluentIcons.news),
@@ -101,8 +98,9 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                       PaneItem(
                         icon: const Icon(FluentIcons.follow_user),
                         title: Text(I18n.of(context).followed),
-                        body:
-                            FollowList(id: int.parse(accountStore.now!.userId)),
+                        body: FollowList(
+                          id: int.parse(accountStore.now!.userId),
+                        ),
                       ),
                     ],
                   ),
@@ -119,11 +117,9 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                     body: RankPage(),
                   ),
                   PaneItemExpander(
-                    key: _expandedKey,
                     icon: const Icon(FluentIcons.bookmarks),
                     title: Text(I18n.of(context).quick_view),
                     body: const SizedBox.shrink(),
-                    onTap: () => _expandedKey.currentState?.toggleOpen(),
                     items: [
                       PaneItem(
                         icon: const Icon(FluentIcons.news),
@@ -207,9 +203,7 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                                   : accountStore.now!.mailAddress,
                               style: FluentTheme.of(context).typography.caption,
                             ),
-                            SizedBox(
-                              width: 6,
-                            ),
+                            SizedBox(width: 6),
                             HyperlinkButton(
                               onPressed: () =>
                                   setState(() => hideEmail = !hideEmail),
@@ -220,10 +214,10 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                               ),
                             ),
                           ],
-                        )
+                        ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
               onPressed: () {
@@ -257,10 +251,10 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                           Text(
                             'Your Favorite Pixiv Client!',
                             style: FluentTheme.of(context).typography.caption,
-                          )
+                          ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
                 onPressed: () {
@@ -271,7 +265,8 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                     title: Text(I18n.of(context).login),
                   );
                 },
-              )),
+              ),
+            ),
     );
   }
 }

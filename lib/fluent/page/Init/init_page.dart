@@ -33,24 +33,25 @@ class _InitPageState extends State<InitPage> {
     return ScaffoldPage(
       header: PageHeader(title: Text(I18n.of(context).select_language)),
       content: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < languageList.length; i++) ...[
-              RadioButton(
-                checked: currentIndex == i,
-                onChanged: (v) async {
-                  await userSetting.setLanguageNum(i);
-                  currentIndex = i;
-                  setState(() {});
-                },
-                content: Text(languageList[i]),
-              ),
-              if (i != languageList.length - 1) const SizedBox(height: 8),
+        child: RadioGroup<int>(
+          groupValue: currentIndex,
+          onChanged: (v) async {
+            if (v == null) return;
+            await userSetting.setLanguageNum(v);
+            currentIndex = v;
+            setState(() {});
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < languageList.length; i++) ...[
+                RadioButton(value: i, content: Text(languageList[i])),
+                if (i != languageList.length - 1) const SizedBox(height: 8),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

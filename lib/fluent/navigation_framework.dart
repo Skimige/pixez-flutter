@@ -48,71 +48,66 @@ class _NavigationFrameworkState extends State<NavigationFramework> {
     final temporaryItem = _navigator.currentTemporary;
     if (temporaryItem != null) {
       items.add(PaneItemSeparator());
-      items.add(PaneItem(
-        icon: temporaryItem.icon,
-        title: temporaryItem.title,
-        body: Navigator(
-          observers: [_navigator],
-          onGenerateRoute: (settings) {
-            return FluentPageRoute(
-              builder: (context) => const SizedBox.shrink(),
-              settings: settings,
-            );
-          },
+      items.add(
+        PaneItem(
+          icon: temporaryItem.icon,
+          title: temporaryItem.title,
+          body: Navigator(
+            observers: [_navigator],
+            onGenerateRoute: (settings) {
+              return FluentPageRoute(
+                builder: (context) => const SizedBox.shrink(),
+                settings: settings,
+              );
+            },
+          ),
         ),
-      ));
+      );
     }
     return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
       child: Listener(
         child: NavigationView(
-          appBar: NavigationAppBar(
-            height: 40.0,
-            leading: Row(
-              children: [
-                Tooltip(
-                  message: '后退',
-                  child: PaneItem(
+          titleBar: TitleBar(
+            title: _navigator.currentTemporary?.title ?? widget.defaultTitle,
+            backButton: Tooltip(
+              message: '后退',
+              child:
+                  PaneItem(
                     icon: const Icon(FluentIcons.back, size: 14.0),
                     body: const SizedBox.shrink(),
                     enabled: _navigator.canGoBack,
                   ).build(
-                    context,
-                    false,
-                    _onGoBackPress,
+                    context: context,
+                    selected: false,
+                    onPressed: _onGoBackPress,
                     displayMode: PaneDisplayMode.compact,
+                    itemIndex: -1,
+                  ),
+            ),
+            captionControls: Row(
+              children: [
+                PaneItem(
+                  icon: const Icon(FluentIcons.forward, size: 14.0),
+                  body: const SizedBox.shrink(),
+                  enabled: _navigator.canForward,
+                ).build(
+                  context: context,
+                  selected: false,
+                  onPressed: _onForward,
+                  displayMode: PaneDisplayMode.compact,
+                  itemIndex: -1,
+                ),
+                SizedBox(
+                  width: 138,
+                  height: 32,
+                  child: WindowCaption(
+                    brightness: FluentTheme.of(context).brightness,
+                    backgroundColor: Colors.transparent,
                   ),
                 ),
-                if (_navigator.canForward)
-                  Tooltip(
-                    message: '前进',
-                    child: PaneItem(
-                      icon: const Icon(FluentIcons.forward, size: 14.0),
-                      body: const SizedBox.shrink(),
-                    ).build(
-                      context,
-                      false,
-                      _onForward,
-                      displayMode: PaneDisplayMode.compact,
-                    ),
-                  ),
               ],
-            ),
-            title: DragToMoveArea(
-              child: Align(
-                // 垂直居中文字
-                alignment: AlignmentDirectional.centerStart,
-                child: _navigator.currentTemporary?.title ?? widget.defaultTitle,
-              ),
-            ),
-            actions: SizedBox(
-              width: 138,
-              height: 40.0,
-              child: WindowCaption(
-                brightness: FluentTheme.of(context).brightness,
-                backgroundColor: Colors.transparent,
-              ),
             ),
           ),
           pane: NavigationPane(
@@ -326,19 +321,12 @@ abstract class _PixEzNavigatableItem {
     required Widget icon,
     required Widget title,
     required Widget Function(BuildContext) page,
-  }) =>
-      _PixEzTemporaryNavigatableItem(
-        icon: icon,
-        title: title,
-        page: page,
-      );
+  }) => _PixEzTemporaryNavigatableItem(icon: icon, title: title, page: page);
 }
 
 class _PixEzIndexableNavigatableItem extends _PixEzNavigatableItem {
   final int index;
-  _PixEzIndexableNavigatableItem({
-    required this.index,
-  });
+  _PixEzIndexableNavigatableItem({required this.index});
 }
 
 class _PixEzTemporaryNavigatableItem extends _PixEzNavigatableItem {
