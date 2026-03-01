@@ -284,17 +284,13 @@ class FluentLeader {
     assert(icon != null);
     assert(title != null);
 
-    final _final = forceSkipWrap
-        ? widget
-        : widget is ScaffoldPage
-            ? widget
-            : ScaffoldPage(
-                content: widget,
-                padding: EdgeInsets.all(0.0),
-              );
+    Widget _final = widget;
+    if (!forceSkipWrap && _final is! ScaffoldPage)
+      _final = ScaffoldPage(content: widget, padding: EdgeInsets.all(0.0));
 
-    return PixEzNavigator.instance.pushRoute(
-      page: _final,
+    return PixEzNavigator.push(
+      context,
+      builder: (_) => _final,
       icon: icon ?? const Icon(FluentIcons.unknown),
       title: title ?? Text(I18n.of(context).undefined),
     );

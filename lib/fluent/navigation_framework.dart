@@ -27,97 +27,139 @@ class NavigationFramework extends StatefulWidget {
   State<StatefulWidget> createState() => _NavigationFrameworkState();
 }
 
-class _NavigationFrameworkState extends State<NavigationFramework> {
-  late PixEzNavigator _navigator;
+class _NavigationFrameworkState extends State<NavigationFramework>
+    with WindowListener {
+  final GlobalKey<PixEzNavigatorState> _navigatorKey =
+      GlobalKey<PixEzNavigatorState>();
+
+  void _traverse(
+    List<NavigationPaneItem> all,
+    Iterable<NavigationPaneItem> items, [
+    NavigationPaneItem? parent,
+  ]) {
+    for (final item in items) {
+      item.parent = parent;
+      all.add(item);
+      if (item is PaneItemExpander) _traverse(all, item.items, item);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    final (temporaryIndex, skipIndexes) = _calcTemporaryIndex();
-    _navigator = PixEzNavigator(
-      initIndex: widget.initIndex,
-      temporaryIndex: temporaryIndex,
-      skipIndexes: skipIndexes,
-      onUpdate: () => setState(() {}),
-    );
+    windowManager.addListener(this);
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowFocus() {
+    // 确保只调用一次
+    setState(() {});
+    // 做些什么
   }
 
   @override
   Widget build(BuildContext context) {
+    PaneItem? temporary;
     final items = [...widget.items];
-    final temporaryItem = _navigator.currentTemporary;
-    if (temporaryItem != null) {
+    if (_navigatorKey.currentState?.isTemporary ?? false) {
       items.add(PaneItemSeparator());
       items.add(
-        PaneItem(
-          icon: temporaryItem.icon,
-          title: temporaryItem.title,
-          body: Navigator(
-            observers: [_navigator],
-            onGenerateRoute: (settings) {
-              return FluentPageRoute(
-                builder: (context) => const SizedBox.shrink(),
-                settings: settings,
-              );
-            },
-          ),
+        temporary = PaneItem(
+          icon: _navigatorKey.currentState?.currentIcon,
+          title: _navigatorKey.currentState?.currentTitle,
+          body: const SizedBox.square(),
         ),
       );
     }
+
+    final allItems = <NavigationPaneItem>[];
+    _traverse(allItems, items);
+    _traverse(allItems, widget.footerItems);
+
+    var effectiveItems = allItems
+        .where((i) => i is PaneItem && i is! PaneItemAction && i.body != null)
+        .cast<PaneItem>()
+        .toList();
+
+    final temporaryIndex = temporary != null
+        ? effectiveItems.indexOf(temporary)
+        : -1;
+
+    int? selected =
+        _navigatorKey.currentState?.currentIndex ?? widget.initIndex;
+    if (selected == -1) selected = temporaryIndex;
+
+    assert(!selected.isNegative);
+    assert(selected < effectiveItems.length);
+
     return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
       child: Listener(
         child: NavigationView(
           titleBar: TitleBar(
-            title: _navigator.currentTemporary?.title ?? widget.defaultTitle,
-            backButton: Tooltip(
-              message: '后退',
-              child:
-                  PaneItem(
-                    icon: const Icon(FluentIcons.back, size: 14.0),
-                    body: const SizedBox.shrink(),
-                    enabled: _navigator.canGoBack,
-                  ).build(
-                    context: context,
-                    selected: false,
-                    onPressed: _onGoBackPress,
-                    displayMode: PaneDisplayMode.compact,
-                    itemIndex: -1,
-                  ),
-            ),
-            captionControls: Row(
-              children: [
-                PaneItem(
-                  icon: const Icon(FluentIcons.forward, size: 14.0),
-                  body: const SizedBox.shrink(),
-                  enabled: _navigator.canForward,
-                ).build(
-                  context: context,
-                  selected: false,
-                  onPressed: _onForward,
-                  displayMode: PaneDisplayMode.compact,
-                  itemIndex: -1,
-                ),
-                SizedBox(
-                  width: 138,
-                  height: 32,
-                  child: WindowCaption(
-                    brightness: FluentTheme.of(context).brightness,
-                    backgroundColor: Colors.transparent,
-                  ),
-                ),
-              ],
+            title:
+                _navigatorKey.currentState?.currentTitle ?? widget.defaultTitle,
+            onDragStarted: () => windowManager.startDragging(),
+            onDoubleTap: () async {
+              bool isMaximized = await windowManager.isMaximized();
+              if (!isMaximized) {
+                windowManager.maximize();
+              } else {
+                windowManager.unmaximize();
+              }
+            },
+            onBackRequested: _onGoBackPress,
+            isBackButtonEnabled: _navigatorKey.currentState?.canGoBack ?? false,
+            captionControls: SizedBox(
+              width: 138,
+              child: WindowCaption(
+                brightness: FluentTheme.of(context).brightness,
+                backgroundColor: Colors.transparent,
+              ),
             ),
           ),
           pane: NavigationPane(
             displayMode: widget.displayMode,
             header: widget.header,
-            selected: _navigator.currentIndex,
-            autoSuggestBox: widget.autoSuggestBox,
             items: items,
+            selected: selected,
+            autoSuggestBox: widget.autoSuggestBox,
             footerItems: widget.footerItems,
-            onChanged: _navigator.pushIndex,
+            onChanged: (index) {
+              final item = effectiveItems[index];
+              final body = item.body ?? const SizedBox.shrink();
+
+              _navigatorKey.currentState?.pushIndex(
+                index: index,
+                builder: (context) => body,
+              );
+            },
+          ),
+          paneBodyBuilder: (_, _) => PixEzNavigator(
+            key: _navigatorKey,
+            initIndex: widget.initIndex,
+            temporaryIndex: temporaryIndex,
+            onUpdate: () {
+              try {
+                setState(() {});
+              } catch (e) {}
+            },
+            onGenerateRoute: (settings) {
+              final item = effectiveItems[widget.initIndex];
+              final body = item.body ?? const SizedBox.shrink();
+
+              return _PixEzIndexRoute(
+                builder: (context) => body,
+                index: widget.initIndex,
+              );
+            },
           ),
         ),
         onPointerDown: _onPointerDown,
@@ -132,8 +174,8 @@ class _NavigationFrameworkState extends State<NavigationFramework> {
       // 鼠标的后退按钮
       case kBackMouseButton:
         _onGoBack();
-      case kForwardMouseButton:
-        _onForward();
+      // case kForwardMouseButton:
+      //   _onForward();
     }
   }
 
@@ -144,8 +186,8 @@ class _NavigationFrameworkState extends State<NavigationFramework> {
           // 键盘的 Alt + 左箭头
           case LogicalKeyboardKey.arrowLeft:
             _onGoBack();
-          case LogicalKeyboardKey.arrowRight:
-            _onForward();
+          // case LogicalKeyboardKey.arrowRight:
+          //   _onForward();
         }
       }
     }
@@ -153,190 +195,243 @@ class _NavigationFrameworkState extends State<NavigationFramework> {
 
   void _onGoBackPress() => _onGoBack();
 
-  void _onGoBack() => _navigator.pop();
-  void _onForward() => _navigator.forward();
-
-  (int temporaryIndex, List<int> skipIndexes) _calcTemporaryIndex() {
-    var temporaryIndex = 0;
-    List<int> skipIndexes = [];
-
-    void calc(List<NavigationPaneItem> items) {
-      items.forEach((item) {
-        temporaryIndex++;
-        if (item is PaneItemExpander) {
-          skipIndexes.add(temporaryIndex - 1);
-          calc(item.items);
-        }
-      });
-    }
-
-    calc(widget.items);
-    return (temporaryIndex, skipIndexes);
-  }
+  void _onGoBack() => _navigatorKey.currentState?.pop();
+  // void _onForward() => _navigatorKey.currentState?.forward();
 }
 
-class PixEzNavigator extends NavigatorObserver {
-  static late PixEzNavigator instance;
-
-  final int temporaryIndex;
-  final List<int> skipIndexes;
-  final List<_PixEzNavigatableItem> _histories = [];
-  final List<_PixEzNavigatableItem> _forward = [];
+class PixEzNavigator extends StatefulWidget {
   final void Function() onUpdate;
+  final int initIndex;
+  final int temporaryIndex;
+  final Route<dynamic>? Function(RouteSettings)? onGenerateRoute;
 
   PixEzNavigator({
-    required int initIndex,
+    super.key,
+    required this.initIndex,
     required this.temporaryIndex,
-    required this.skipIndexes,
     required this.onUpdate,
+    this.onGenerateRoute,
+  }) {}
+
+  @override
+  PixEzNavigatorState createState() => PixEzNavigatorState();
+
+  static PixEzNavigatorState of(
+    BuildContext context, {
+    bool rootNavigator = false,
   }) {
-    instance = this;
-    _histories.add(_PixEzNavigatableItem.index(initIndex));
+    PixEzNavigatorState? navigator;
+    if (context case StatefulElement(:final PixEzNavigatorState state)) {
+      navigator = state;
+    }
+
+    navigator = rootNavigator
+        ? context.findRootAncestorStateOfType<PixEzNavigatorState>() ??
+              navigator
+        : navigator ?? context.findAncestorStateOfType<PixEzNavigatorState>();
+
+    assert(() {
+      if (navigator == null) {
+        throw FlutterError(
+          'Navigator operation requested with a context that does not include a Navigator.\n'
+          'The context used to push or pop routes from the Navigator must be that of a '
+          'widget that is a descendant of a Navigator widget.',
+        );
+      }
+      return true;
+    }());
+    return navigator!;
   }
 
-  /// 决定窗口左上角后退按钮是否允许用户点击
-  bool get canGoBack => _histories.length > 1;
-  bool get canForward => _forward.isNotEmpty;
+  static Future<T?> push<T extends Object?>(
+    BuildContext context, {
+    required Widget icon,
+    required Widget title,
+    required Widget Function(BuildContext) builder,
+  }) => PixEzNavigator.of(
+    context,
+  ).push(icon: icon, title: title, builder: builder);
+
+  static Future<T?> pushIndex<T extends Object?>(
+    BuildContext context, {
+    required int index,
+    required Widget Function(BuildContext) builder,
+  }) => PixEzNavigator.of(context).pushIndex(index: index, builder: builder);
+
+  static void pop<T>(BuildContext context, [T? result]) =>
+      of(context).pop(result);
+
+  // static Future<dynamic> forward(BuildContext context) => of(context).forward();
+}
+
+class PixEzNavigatorState extends State<PixEzNavigator> {
+  late final _PixEzNavigatorObserver _navigatorObserver;
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  NavigatorState get navigator => navigatorKey.currentState!;
+  bool get canGoBack => navigator.canPop();
+  // bool get canForward => _navigatorObserver.canForward;
+  bool get isTemporary => _navigatorObserver.isTemporary;
+  int get currentIndex => _navigatorObserver.currentIndex;
+  Widget? get currentTitle => _navigatorObserver.currentTitle;
+  Widget? get currentIcon => _navigatorObserver.currentIcon;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _navigatorObserver = _PixEzNavigatorObserver(
+      initIndex: widget.initIndex,
+      onUpdate: widget.onUpdate,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: navigatorKey,
+      observers: [_navigatorObserver],
+      onGenerateRoute: widget.onGenerateRoute,
+    );
+  }
+
+  Future<T?> push<T extends Object?>({
+    required Widget icon,
+    required Widget title,
+    required Widget Function(BuildContext) builder,
+  }) => navigator.push(
+    PixEzPageRoute.temporary<T>(builder: builder, icon: icon, title: title),
+  );
+
+  Future<T?> pushIndex<T extends Object?>({
+    required int index,
+    required Widget Function(BuildContext) builder,
+  }) async {
+    if (isTemporary &&
+        widget.temporaryIndex >= 0 &&
+        widget.temporaryIndex < index)
+      index--;
+
+    return await navigator.push(
+      PixEzPageRoute.index<T>(builder: builder, index: index),
+    );
+  }
+
+  void pop<T>([T? result]) {
+    if (navigator.canPop()) navigator.pop(result);
+  }
+
+  // Future<dynamic> forward() => _navigatorObserver.forward();
+}
+
+class _PixEzNavigatorObserver extends NavigatorObserver {
+  late int _cacheIndex;
+  Widget? _cacheTitle = null;
+  Widget? _cacheIcon = null;
+
+  final void Function() onUpdate;
+  // final List<Route<dynamic>> _forward = [];
 
   /// 当前的页面
-  _PixEzNavigatableItem get current => _histories.last;
+  Route<dynamic>? _current = null;
 
-  /// 当前的临时页面 如果不是临时页面则为 null
-  _PixEzTemporaryNavigatableItem? get currentTemporary {
-    if (current is _PixEzTemporaryNavigatableItem)
-      return current as _PixEzTemporaryNavigatableItem;
-    return null;
+  _PixEzNavigatorObserver({required int initIndex, required this.onUpdate}) {
+    _cacheIndex = initIndex;
   }
 
-  /// 当前页面索引
-  int get currentIndex {
-    assert(_histories.isNotEmpty);
+  bool get canGoBack => navigator?.canPop() ?? false;
+  // bool get canForward => _forward.isNotEmpty;
+  bool get isTemporary => _current is! _PixEzIndexRoute;
 
-    final item = current;
-    return item is _PixEzIndexableNavigatableItem ? item.index : temporaryIndex;
+  /// 当前页面索引 (模态对话框不更新此值)
+  int get currentIndex => _cacheIndex;
+
+  /// 临时页面标题
+  Widget? get currentTitle => _cacheTitle;
+
+  /// 临时页面图标
+  Widget? get currentIcon => _cacheIcon;
+
+  // Future<dynamic> forward() async {
+  //   if (_forward.isEmpty) return null;
+
+  //   final item = _forward.removeLast();
+
+  //   return await navigator?.push(item);
+  // }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+
+    // 记录当前页面
+    _current = route;
+
+    // 清除前进列表
+    // _forward.clear();
+
+    // 更新当前页面索引
+    _updateIndex(route);
   }
 
-  Future<T?> pushRoute<T extends Object?>({
-    required Widget icon,
-    required Widget title,
-    required Widget page,
-  }) async {
-    final builder = (BuildContext context) => page;
-    final item = _PixEzNavigatableItem.temporary(
-      icon: icon,
-      title: title,
-      page: builder,
-    );
-    final previous = _histories.last;
-    _histories.add(item);
-    _forward.clear();
-    onUpdate();
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
 
-    await Future.delayed(Duration(milliseconds: 50));
-    assert(navigator != null);
+    // 记录前进列表
+    // if (previousRoute != null) _forward.add(route);
 
-    if (previous is _PixEzIndexableNavigatableItem)
-      // 消除默认的空白页
-      return await navigator!.pushAndRemoveUntil(
-        FluentPageRoute(builder: builder),
-        (route) => false,
-      );
-    else
-      return await navigator!.push(FluentPageRoute(builder: builder));
+    // 记录当前页面
+    _current = previousRoute;
+
+    // 更新当前页面索引
+    _updateIndex(previousRoute);
   }
 
-  void pushIndex(int index) {
-    if (skipIndexes.contains(index)) return;
-    if (currentTemporary != null && index > temporaryIndex) index--;
-
-    _histories.add(_PixEzNavigatableItem.index(index));
-    _forward.clear();
-    onUpdate();
-  }
-
-  Future<void> forward() async {
-    if (!canForward) return;
-
-    final previous = _histories.last;
-    final item = _forward.removeLast();
-    _histories.add(item);
-    onUpdate();
-
-    if (item is _PixEzTemporaryNavigatableItem) {
-      await Future.delayed(Duration(milliseconds: 50));
-      assert(navigator != null);
-
-      if (previous is _PixEzIndexableNavigatableItem)
-        // 消除默认的空白页
-        await navigator!.pushAndRemoveUntil(
-          FluentPageRoute(builder: item.page),
-          (route) => false,
-        );
-      else
-        await navigator!.push(FluentPageRoute(builder: item.page));
+  void _updateIndex(Route<dynamic>? route) {
+    if (route is _PixEzTemporaryRoute) {
+      _cacheIndex = -1;
+      _cacheTitle = route.title;
+      _cacheIcon = route.icon;
+    } else if (route is _PixEzIndexRoute) {
+      _cacheIndex = route.index;
+      _cacheTitle = null;
+      _cacheIcon = null;
     }
-  }
 
-  Future<void> pop() async {
-    if (!canGoBack) return;
-
-    // 移出历史
-    final current = _histories.removeLast();
-    _forward.add(current);
+    // 通知更新
     onUpdate();
-
-    final latest = _histories.last;
-
-    if (latest is _PixEzTemporaryNavigatableItem) {
-      await Future.delayed(Duration(milliseconds: 50));
-      assert(navigator != null);
-
-      switch (current) {
-        case _PixEzIndexableNavigatableItem():
-          // 此时应该 replace 进去
-          await navigator!.pushAndRemoveUntil(
-            FluentPageRoute(builder: latest.page),
-            (route) => false,
-          );
-
-        case _PixEzTemporaryNavigatableItem():
-          // 此时判断能否 pop
-          // 如果不能 pop 则 replace 进去
-          if (!await navigator!.maybePop()) {
-            await navigator!.pushAndRemoveUntil(
-              FluentPageRoute(builder: latest.page),
-              (route) => false,
-            );
-          }
-      }
-    }
   }
 }
 
-abstract class _PixEzNavigatableItem {
-  _PixEzNavigatableItem();
-  factory _PixEzNavigatableItem.index(int index) =>
-      _PixEzIndexableNavigatableItem(index: index);
-  factory _PixEzNavigatableItem.temporary({
+class PixEzPageRoute<T> extends FluentPageRoute<T> {
+  PixEzPageRoute({required super.builder});
+
+  bool get isTemporary => this is _PixEzTemporaryRoute;
+
+  static PixEzPageRoute<T> index<T>({
+    required Widget Function(BuildContext) builder,
+    required int index,
+  }) => _PixEzIndexRoute<T>(builder: builder, index: index);
+
+  static PixEzPageRoute<T> temporary<T>({
+    required Widget Function(BuildContext) builder,
     required Widget icon,
     required Widget title,
-    required Widget Function(BuildContext) page,
-  }) => _PixEzTemporaryNavigatableItem(icon: icon, title: title, page: page);
+  }) => _PixEzTemporaryRoute<T>(builder: builder, icon: icon, title: title);
 }
 
-class _PixEzIndexableNavigatableItem extends _PixEzNavigatableItem {
+class _PixEzIndexRoute<T> extends PixEzPageRoute<T> {
   final int index;
-  _PixEzIndexableNavigatableItem({required this.index});
+  _PixEzIndexRoute({required super.builder, required this.index});
 }
 
-class _PixEzTemporaryNavigatableItem extends _PixEzNavigatableItem {
+class _PixEzTemporaryRoute<T> extends PixEzPageRoute<T> {
   final Widget icon;
   final Widget title;
-  final Widget Function(BuildContext) page;
-
-  _PixEzTemporaryNavigatableItem({
+  _PixEzTemporaryRoute({
+    required super.builder,
     required this.icon,
     required this.title,
-    required this.page,
   });
 }

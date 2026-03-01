@@ -79,7 +79,6 @@ class _FluentHelloPageState extends State<FluentHelloPage> {
                   PaneItemExpander(
                     icon: const Icon(FluentIcons.bookmarks),
                     title: Text(I18n.of(context).quick_view),
-                    body: const SizedBox.shrink(),
                     items: [
                       PaneItem(
                         icon: const Icon(FluentIcons.news),

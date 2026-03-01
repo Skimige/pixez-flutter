@@ -40,7 +40,8 @@ class _UpdatePageState extends State<UpdatePage> {
   initData() async {
     try {
       Response response = await _dio.get(
-          'https://api.github.com/repos/Notsfsssf/pixez-flutter/releases/latest');
+        'https://api.github.com/repos/Notsfsssf/pixez-flutter/releases/latest',
+      );
       final result = LastRelease.fromJson(response.data);
       setState(() {
         lastRelease = result;
@@ -55,43 +56,40 @@ class _UpdatePageState extends State<UpdatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(I18n.of(context).update),
-      ),
+      appBar: AppBar(title: Text(I18n.of(context).update)),
       body: lastRelease == null
-          ? Builder(builder: (_) {
-              return error == null
-                  ? Container(
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  : Container(
-                      child: Center(
-                        child: Text(error.toString()),
-                      ),
-                    );
-            })
+          ? Builder(
+              builder: (_) {
+                return error == null
+                    ? Container(
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : Container(child: Center(child: Text(error.toString())));
+              },
+            )
           : ListView(
               children: <Widget>[
                 ListTile(
                   title: Text(I18n.of(context).latest_version),
-                  subtitle: Text(lastRelease!.tagName),
+                  subtitle: Text(lastRelease!.tagName ?? ''),
                 ),
                 ListTile(
                   title: Text(I18n.of(context).download_address),
                   subtitle: SelectableText(
-                      lastRelease!.assets.first.browserDownloadUrl),
+                    lastRelease!.assets?.first.browserDownloadUrl ?? '',
+                  ),
                   onTap: () {
                     try {
-                      launchUrlString(lastRelease!.assets.first.browserDownloadUrl);
+                      launchUrlString(
+                        lastRelease!.assets?.first.browserDownloadUrl ?? '',
+                      );
                     } catch (e) {}
                   },
                 ),
                 ListTile(
                   title: Text(I18n.of(context).new_version_update_information),
-                  subtitle: Text(lastRelease!.body),
-                )
+                  subtitle: Text(lastRelease!.body ?? ''),
+                ),
               ],
             ),
       floatingActionButton: FloatingActionButton(

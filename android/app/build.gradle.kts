@@ -81,8 +81,8 @@ android {
         applicationId = packageName
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 10009850
-        versionName = "0.9.85 year"
+        versionCode = 10009860
+        versionName = "0.9.86 lea"
         ndk {
             abiFilters.clear()
         }
