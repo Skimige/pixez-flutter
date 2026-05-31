@@ -18,7 +18,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -72,17 +71,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
-
     defaultConfig {
         applicationId = packageName
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 10010001
-        versionName = "0.9.101 X"
+        versionCode = 10010010
+        versionName = "0.9.101 mode"
         ndk {
             abiFilters.clear()
         }
@@ -125,6 +119,12 @@ android {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
