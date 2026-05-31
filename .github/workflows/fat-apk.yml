@@ -1,6 +1,6 @@
 name: Build Fat APK
 
-on:	
+on:
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -47,6 +47,9 @@ jobs:
         channel: 'stable'
         cache: true
 
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
     - name: Cache Gradle
       uses: actions/cache@v4
       with:
@@ -68,6 +71,14 @@ jobs:
     - name: Flutter Doctor
       run: flutter doctor -v
       if: github.event.inputs.verbose == 'true'
+
+    - name: Flutter Pub Get (rhttp)
+      working-directory: plugins/rhttp
+      run: flutter pub get
+
+    - name: Flutter Build Runner (rhttp)
+      working-directory: plugins/rhttp
+      run: dart run build_runner build --delete-conflicting-outputs
 
     - name: Flutter Pub Get
       run: flutter pub get
