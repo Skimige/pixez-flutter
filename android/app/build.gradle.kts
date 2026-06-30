@@ -23,7 +23,8 @@ plugins {
 }
 
 var dartEnvironmentVariables = mutableMapOf(
-    "IS_GOOGLEPLAY" to false
+    "IS_GOOGLEPLAY" to false,
+    "BUILD_ABI" to false
 )
 
 if (project.hasProperty("dart-defines")) {
@@ -46,7 +47,7 @@ if (project.hasProperty("dart-defines")) {
 //        "\\_|    \\\___/\\/   \\\_/\\____/\\_____/\n" +
 //        "                                \n" +
 //        "                                \n")
-println("hey, IS_GOOGLEPLAY=${dartEnvironmentVariables["IS_GOOGLEPLAY"]}")
+println("hey, IS_GOOGLEPLAY=${dartEnvironmentVariables["IS_GOOGLEPLAY"]}; BUILD_ABI=${dartEnvironmentVariables["BUILD_ABI"]}")
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -84,35 +85,46 @@ android {
         versionName = "0.9.104 wsv"
         buildConfigField("boolean", "IS_GOOGLEPLAY", isGooglePlay.toString())
         ndk {
-            abiFilters.addAll(arrayOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+            abiFilters.clear()
         }
     }
     splits {
         abi {
-            val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
-            isEnable = !isBuildingBundle
+            val buildAbi = dartEnvironmentVariables["BUILD_ABI"] as Boolean
+            isEnable = buildAbi
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
         }
     }
 
-    if (keystorePropertiesFile.exists()) {
-        signingConfigs {
-            create("release") {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-                storePassword = keystoreProperties["storePassword"] as String
+    signingConfigs {
+        create("release") {
+            val keystorePwd: String?
+            val alias: String?
+            val pwd: String?
+            if (rootProject.file("local.properties").exists()) {
+                val properties = Properties().apply {
+                    rootProject.file("local.properties").inputStream().use { load(it) }
+                }
+                keystorePwd = properties.getProperty("RELEASE_STORE_PASSWORD")
+                alias = properties.getProperty("RELEASE_KEY_ALIAS")
+                pwd = properties.getProperty("RELEASE_KEY_PASSWORD")
+            } else {
+                keystorePwd = null
+                alias = null
+                pwd = null
             }
+
+            storeFile = rootProject.file("app/config/release.keystore")
+            storePassword = keystorePwd ?: System.getenv("KEYSTORE_PASS")
+            keyAlias = alias ?: System.getenv("ALIAS_NAME")
+            keyPassword = pwd ?: System.getenv("ALIAS_PASS")
         }
     }
 
     buildTypes {
-        if (keystorePropertiesFile.exists()) {
-            getByName("release") {
-                signingConfig = signingConfigs.getByName("release")
-            }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
