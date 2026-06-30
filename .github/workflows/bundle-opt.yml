@@ -1,0 +1,137 @@
+name: Build AppBundle & ABI (w/ split-debug-info)
+
+on:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**.md'
+      - 'docs/**'
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      java_version:
+        description: 'Java version'
+        required: true
+        default: '17'
+      java_distribution:
+        description: 'Java distribution'
+        required: true
+        default: 'temurin'
+      verbose:
+        description: 'Run with verbose logging'
+        required: false
+        default: 'false'
+
+env:
+  KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+  ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
+  ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ github.event.inputs.java_distribution || 'temurin' }}
+        java-version: ${{ github.event.inputs.java_version || '17' }}
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        cache: true
+
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Override Dependencies
+      run: |
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq
+        which yq
+
+        # Add a temp fix for dio
+        # yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
+
+    - name: Flutter Doctor
+      run: flutter doctor -v
+      if: github.event.inputs.verbose == 'true'
+
+    - name: Flutter Pub Get (rhttp)
+      working-directory: plugins/rhttp/rhttp
+      run: flutter pub get
+
+    - name: Flutter Build Runner (rhttp)
+      working-directory: plugins/rhttp/rhttp
+      run: dart run build_runner build --delete-conflicting-outputs
+
+    - name: Flutter Pub Get
+      run: flutter pub get
+
+    - name: Flutter Build Runner
+      run: flutter packages pub run build_runner build --delete-conflicting-outputs
+
+    - name: Flutter Test (non-verbose)
+      if: github.event.inputs.verbose != 'true'
+      continue-on-error: true
+      run: flutter test
+
+    - name: Flutter Test (verbose)
+      if: github.event.inputs.verbose == 'true'
+      continue-on-error: true
+      run: flutter test --verbose
+
+    - name: Flutter Build AppBundle (non-verbose)
+      if: github.event.inputs.verbose != 'true'
+      continue-on-error: true
+      run: flutter build appbundle --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
+
+    - name: Flutter Build AppBundle (verbose)
+      if: github.event.inputs.verbose == 'true'
+      continue-on-error: true
+      run: flutter build appbundle --verbose --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
+
+    - name: Flutter Build ABI (non-verbose)
+      if: github.event.inputs.verbose != 'true'
+      continue-on-error: true
+      run: flutter build apk --split-per-abi --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
+
+    - name: Flutter Build ABI (verbose)
+      if: github.event.inputs.verbose == 'true'
+      continue-on-error: true
+      run: flutter build apk --split-per-abi --verbose --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true --split-debug-info=
+
+    - name: Send arm64-v8a variant to me via Telegram
+      env:
+        CHAT_ID: ${{ secrets.CHAT_ID }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      run: |
+        export OUTPUT="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+        curl https://api.telegram.org/bot${BOT_TOKEN}/sendDocument -X POST -F chat_id="$CHAT_ID" -F caption="[arm64-v8a with split-debug-info] $GITHUB_SHA" -F document="@$OUTPUT" > /dev/null
+
+    - uses: actions/upload-artifact@v4
+      name: Upload Output Folder
+      with:
+        name: PixEz-flutter
+        path: build/app/outputs
+
+    - uses: actions/upload-artifact@v4
+      name: Upload Variants
+      with:
+        name: app-release
+        path: build/app/outputs/apk/release/*.apk
