@@ -1,0 +1,9 @@
+version: "1"
+rules:
+  - base: master
+    upstream: Notsfsssf:master
+    mergeMethod: merge
+    mergeUnstable: false
+    conflictReviewers:
+      - Skimige
+conflictLabel: "merge-conflict"
