@@ -70,12 +70,28 @@ jobs:
       working-directory: plugins/rhttp/rhttp
       run: flutter pub get
 
+    - name: Cache Build Runner (rhttp)
+      uses: actions/cache@v6
+      with:
+        path: plugins/rhttp/rhttp/.dart_tool/build
+        key: ${{ runner.os }}-build-runner-rhttp-${{ hashFiles('plugins/rhttp/rhttp/pubspec.lock', 'plugins/rhttp/rhttp/build.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-build-runner-rhttp-
+
     - name: Flutter Build Runner (rhttp)
       working-directory: plugins/rhttp/rhttp
       run: dart run build_runner build
 
     - name: Flutter Pub Get
       run: flutter pub get
+
+    - name: Cache Build Runner
+      uses: actions/cache@v6
+      with:
+        path: .dart_tool/build
+        key: ${{ runner.os }}-build-runner-app-${{ hashFiles('pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-build-runner-app-
 
     - name: Flutter Build Runner
       run: dart run build_runner build
