@@ -5,6 +5,7 @@ plugins {
 android {
     namespace = "com.waynejo.androidndkgif"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         minSdk = 21
