@@ -1,20 +1,14 @@
 name: Build Fat APK
 
 on:
-  push:
-    paths-ignore:
-      - '.github/workflows/**'
-      - '**.md'
-      - 'docs/**'
-    branches: [ master ]
   workflow_dispatch:
     inputs:
       java_version:
-        description: 'Java version'     
+        description: 'Java version'
         required: true
         default: '17'
       java_distribution:
-        description: 'Java distribution'     
+        description: 'Java distribution'
         required: true
         default: 'temurin'
       verbose:
@@ -26,6 +20,8 @@ env:
   KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
   ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
   ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
+  CHAT_ID: ${{ secrets.CHAT_ID }}
+  BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
 
 jobs:
   build:
@@ -33,40 +29,33 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: ${{ github.event.inputs.java_distribution || 'temurin' }}
         java-version: ${{ github.event.inputs.java_version || '17' }}
 
     - name: Setup Flutter
-      uses: subosito/flutter-action@v2
+      uses: subosito/flutter-action@v2.23.0
       with:
         channel: 'stable'
         cache: true
 
     - name: Setup Rust
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Cache Gradle
-      uses: actions/cache@v4
+      uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
       with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+        target: armv7-linux-androideabi,aarch64-linux-android,x86_64-linux-android
+        cache-shared-key: android-rhttp
+        cache-workspaces: |
+          plugins/rhttp/rhttp/rust -> ../../../../build/rhttp/build
 
-    - name: Override Dependencies
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq
-        which yq
-        
-        # Add a temp fix for dio
-        # yq w -i pubspec.yaml dependencies.dio 4.0.0-beta5
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-read-only: false
+        cache-cleanup: on-success
 
     - name: Flutter Doctor
       run: flutter doctor -v
@@ -78,13 +67,13 @@ jobs:
 
     - name: Flutter Build Runner (rhttp)
       working-directory: plugins/rhttp/rhttp
-      run: dart run build_runner build --delete-conflicting-outputs
+      run: dart run build_runner build
 
     - name: Flutter Pub Get
       run: flutter pub get
 
     - name: Flutter Build Runner
-      run: flutter packages pub run build_runner build --delete-conflicting-outputs
+      run: dart run build_runner build
 
     - name: Flutter Test (non-verbose)
       if: github.event.inputs.verbose != 'true'
@@ -97,31 +86,23 @@ jobs:
       run: flutter test --verbose
 
     - name: Flutter Build Fat APK (non-verbose)
-      continue-on-error: true
-      run: flutter build apk --dart-define=IS_GOOGLEPLAY=false
+      if: github.event.inputs.verbose != 'true'
+      run: flutter build apk --release --no-pub --dart-define=IS_GOOGLEPLAY=false
 
     - name: Flutter Build Fat APK (verbose)
       if: github.event.inputs.verbose == 'true'
-      continue-on-error: true
-      run: flutter build apk --verbose --dart-define=IS_GOOGLEPLAY=false
+      run: flutter build apk --release --no-pub --verbose --dart-define=IS_GOOGLEPLAY=false
 
     - name: Send to me via Telegram
-      env:
-        CHAT_ID: ${{ secrets.CHAT_ID }}
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      if: env.CHAT_ID != '' && env.BOT_TOKEN != ''
       run: |
         OUTPUT="build/app/outputs/apk/release"
-        export name=$(find $OUTPUT -name "app-release.apk")
+        name=$(find "$OUTPUT" -name "app-release.apk" -print -quit)
         curl https://api.telegram.org/bot${BOT_TOKEN}/sendDocument -X POST -F chat_id="$CHAT_ID" -F caption="[Fat APK] $GITHUB_SHA" -F document="@$name" > /dev/null
 
-    - uses: actions/upload-artifact@v4
-      name: Upload Output Folder
-      with:
-        name: PixEz-flutter
-        path: build/app/outputs
-
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       name: Upload Fat APK
       with:
         name: app-release
         path: build/app/outputs/apk/release/app-release.apk
+        if-no-files-found: error
