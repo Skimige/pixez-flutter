@@ -767,13 +767,13 @@ abstract class IllustItemsPageState extends State<IllustItemsPage>
     } else {
       tags = null;
     }
-    illustStore.star(
+    bool success = await illustStore.star(
       restrict: userSetting.defaultPrivateLike ? "private" : "public",
       tags: tags,
     );
-    if (userSetting.followAfterStar) {
-      bool success = await illustStore.followAfterStar();
-      if (success) {
+    if (success && userSetting.followAfterStar) {
+      bool followSuccess = await illustStore.followAfterStar();
+      if (followSuccess) {
         userStore?.isFollow = true;
         BotToast.showText(
           text:

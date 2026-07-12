@@ -111,7 +111,7 @@ abstract class _IllustStoreBase with Store {
   @action
   Future<bool> followAfterStar() async {
     try {
-      if (!illusts!.user.isFollowed!) {
+      if (!(illusts!.user.isFollowed ?? false)) {
         await apiClient.postFollowUser(illusts!.user.id, "public");
         return illusts!.user.isFollowed = true;
       }
