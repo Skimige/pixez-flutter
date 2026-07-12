@@ -24,6 +24,7 @@ import 'package:pixez/app_widget_plugin.dart';
 import 'package:pixez/constants.dart';
 import 'package:pixez/er/leader.dart';
 import 'package:pixez/er/prefer.dart';
+import 'package:pixez/er/updater.dart';
 import 'package:pixez/i18n.dart';
 import 'package:pixez/main.dart';
 import 'package:pixez/page/about/languages.dart';
@@ -364,6 +365,28 @@ class _SettingQualityPageState extends State<SettingQualityPage>
                     userSetting.setFeedAIBadge(value);
                   },
                 ),
+                if (!Constants.isGooglePlay && !Platform.isIOS)
+                  SwitchListTile(
+                    value: Updater.result == Result.yes &&
+                        Updater.latestVersion != null &&
+                        userSetting.ignoreUpdateVersion == Updater.latestVersion,
+                    title: Text(I18n.of(context).ignore_current_version_update),
+                    onChanged: (value) async {
+                      if (value) {
+                        if (Updater.latestVersion == null) {
+                          await Updater.check();
+                        }
+                        if (Updater.result == Result.yes &&
+                            Updater.latestVersion != null) {
+                          await userSetting.setIgnoreUpdateVersion(
+                            Updater.latestVersion,
+                          );
+                        }
+                      } else {
+                        await userSetting.setIgnoreUpdateVersion(null);
+                      }
+                    },
+                  ),
                 Divider(),
                 SwitchListTile(
                   value: userSetting.followAfterStar,

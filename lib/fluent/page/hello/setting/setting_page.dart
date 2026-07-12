@@ -56,34 +56,16 @@ class _SettingPageState extends State<SettingPage> {
     initMethod();
   }
 
-  bool hasNewVersion = false;
   bool hideEmail = true;
 
+  bool get _effectiveHasNewVersion =>
+      Updater.result == Result.yes &&
+      Updater.latestVersion != userSetting.ignoreUpdateVersion;
+
   initMethod() async {
-    if (Updater.result != Result.timeout) {
-      bool hasNew = Updater.result == Result.yes;
-      if (mounted)
-        setState(() {
-          hasNewVersion = hasNew;
-        });
-      return;
-    }
-    Result result = await Updater.check();
-    switch (result) {
-      case Result.yes:
-        if (mounted) {
-          setState(() {
-            hasNewVersion = true;
-          });
-        }
-        break;
-      default:
-        if (mounted) {
-          setState(() {
-            hasNewVersion = false;
-          });
-        }
-    }
+    if (Updater.result != Result.timeout) return;
+    await Updater.check();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -288,15 +270,19 @@ class _SettingPageState extends State<SettingPage> {
               title: Text(I18n.of(context).about),
               onPressed: () => Leader.push(
                 context,
-                AboutPage(newVersion: hasNewVersion),
+                AboutPage(newVersion: _effectiveHasNewVersion),
                 icon: Icon(FluentIcons.message),
                 title: Text(I18n.of(context).about),
               ),
               trailing: Row(
                 children: [
-                  Visibility(
-                    child: NewVersionChip(),
-                    visible: hasNewVersion,
+                  Observer(
+                    builder: (context) {
+                      return Visibility(
+                        child: NewVersionChip(),
+                        visible: _effectiveHasNewVersion,
+                      );
+                    },
                   ),
                   Icon(FluentIcons.chevron_right),
                 ],
