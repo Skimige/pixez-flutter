@@ -56,8 +56,15 @@ jobs:
         channel: 'stable'
         cache: true
 
+    # cargokit builds rhttp with --target-dir <plugin buildDir>/build, which
+    # resolves to build/rhttp/build. Without pointing the cache at it, the
+    # default workspace (repo root, no Cargo.toml) caches nothing and every run
+    # recompiles the whole dependency tree once per Android ABI.
     - name: Setup Rust
       uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        cache-workspaces: |
+          plugins/rhttp/rhttp/rust -> ../../../../build/rhttp/build
 
     - name: Cache Gradle
       uses: actions/cache@v4
