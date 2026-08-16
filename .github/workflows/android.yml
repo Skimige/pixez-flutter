@@ -35,6 +35,11 @@ env:
   BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
   VERBOSE: ${{ github.event.inputs.verbose == 'true' && '--verbose' || '' }}
   APK_DIR: build/app/outputs/apk/release
+  # org.gradle.caching is unset in android/gradle.properties, so build-cache-1
+  # was never written and every run recompiled Kotlin, reran R8 and remerged
+  # resources. Set here rather than in gradle.properties to keep it in a
+  # fork-owned file that upstream syncs will not touch.
+  GRADLE_OPTS: -Dorg.gradle.caching=true
 
 jobs:
   build:
@@ -66,15 +71,17 @@ jobs:
         cache-workspaces: |
           plugins/rhttp/rhttp/rust -> ../../../../build/rhttp/build
 
-    - name: Cache Gradle
-      uses: actions/cache@v4
+    # actions/cache with a hashFiles key only writes when the key is new, so the
+    # build-cache-1 entries produced under org.gradle.caching were discarded at
+    # the end of every job. setup-gradle uses a rolling key, so an accumulating
+    # cache actually persists, and it caches selectively instead of storing all
+    # of ~/.gradle/caches, which had grown to 4.5 GB of mostly dependency jars
+    # and AGP transforms.
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6
       with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+        cache-read-only: false
+        cache-cleanup: on-success
 
     - name: Flutter Doctor
       if: github.event.inputs.verbose == 'true'
@@ -102,6 +109,18 @@ jobs:
     # is the fat APK. Building them separately costs a second full AOT compile.
     - name: Flutter Build APKs
       run: flutter build apk --split-per-abi $VERBOSE --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true
+
+    # Confirms the build cache was actually switched on before any timing from
+    # this run gets interpreted. An empty build-cache-1 means GRADLE_OPTS did
+    # not reach the daemon and the result says nothing about caching.
+    - name: Verify Gradle Build Cache Is Active
+      run: |
+        d=~/.gradle/caches/build-cache-1
+        if [ -d "$d" ]; then
+          echo "entries: $(find "$d" -type f | wc -l), size: $(du -sh "$d" | cut -f1)"
+        else
+          echo "::warning::build-cache-1 absent - org.gradle.caching did not take effect"
+        fi
 
     - name: Verify APK Outputs
       run: |
