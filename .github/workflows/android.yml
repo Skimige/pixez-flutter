@@ -75,8 +75,7 @@ jobs:
     # build-cache-1 entries produced under org.gradle.caching were discarded at
     # the end of every job. setup-gradle uses a rolling key, so an accumulating
     # cache actually persists, and it caches selectively instead of storing all
-    # of ~/.gradle/caches, which had grown to 4.5 GB of mostly dependency jars
-    # and AGP transforms.
+    # of ~/.gradle/caches, most of which is dependency jars and AGP transforms.
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v6
       with:
@@ -129,12 +128,27 @@ jobs:
           test -s "$APK_DIR/$apk" || { echo "::error::missing or empty $apk"; exit 1; }
         done
 
+    # Never fails the job: the APKs reach the artifacts either way. It does have
+    # to be loud though. The first version discarded the response, so when a file
+    # went over Telegram's bot upload limit the send was rejected and nothing
+    # anywhere said so; the only symptom was one APK that never arrived.
     - name: Send APKs to me via Telegram
       if: env.CHAT_ID != '' && env.BOT_TOKEN != ''
       run: |
+        limit=$((50 * 1024 * 1024))
         send() {
-          curl -sS "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" -X POST \
-            -F chat_id="$CHAT_ID" -F caption="[$2] $GITHUB_SHA" -F document="@$APK_DIR/$1" > /dev/null
+          f="$APK_DIR/$1"
+          sz=$(stat -c%s "$f")
+          if [ "$sz" -gt "$limit" ]; then
+            echo "::error::$1 is $((sz / 1048576)) MiB, over Telegram's 50 MiB bot limit - not sent"
+            return
+          fi
+          resp=$(curl -sS "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" -X POST \
+            -F chat_id="$CHAT_ID" -F caption="[$2] $GITHUB_SHA" -F document="@$f")
+          case "$resp" in
+            *'"ok":true'*) echo "sent $1 ($((sz / 1048576)) MiB)" ;;
+            *) echo "::error::Telegram rejected $1: $resp" ;;
+          esac
         }
         send app-universal-release.apk "Fat APK"
         send app-arm64-v8a-release.apk "arm64-v8a"

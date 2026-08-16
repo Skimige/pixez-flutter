@@ -100,6 +100,17 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            // Upstream dropped android:extractNativeLibs, which leaves AGP storing
+            // .so uncompressed and inflates every APK. That trade is right for Play,
+            // which repacks per device, but this fork ships APKs directly, so
+            // compress them back. Keyed off BUILD_ABI so the manually built
+            // AppBundle keeps the uncompressed layout Play expects.
+            useLegacyPackaging = dartEnvironmentVariables["BUILD_ABI"] as Boolean
+        }
+    }
+
     signingConfigs {
         create("release") {
             val keystorePwd: String?
