@@ -6,6 +6,15 @@ the bot identity: logging the same bot token in over MTProto raises the ceiling
 to 2 GB while keeping the bot's permissions, so no account-level credential ends
 up in CI.
 
+cryptg is installed alongside telethon and picked up automatically. Without it
+telethon falls back to a pure Python AES implementation and the transfer becomes
+CPU bound rather than network bound, which is what the first MTProto run showed.
+
+Telethon uploads a single file over one connection, so there is a ceiling here
+that cryptg does not lift. Parallel chunked uploads exist as a third party
+addition, but they invite FloodWait handling that these file sizes do not
+justify.
+
 Delivery is best effort. The APKs are uploaded as workflow artifacts regardless,
 so a failure here is reported and does not stop the build.
 """

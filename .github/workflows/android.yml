@@ -139,7 +139,7 @@ jobs:
       if: env.CHAT_ID != '' && env.BOT_TOKEN != '' && env.TG_API_ID != ''
       continue-on-error: true
       run: |
-        pip install --quiet telethon
+        pip install --quiet telethon==1.44.0 cryptg==0.6.0
         python .github/scripts/send_telegram.py
 
     - name: Upload Fat APK
