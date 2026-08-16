@@ -94,6 +94,9 @@ android {
             isEnable = buildAbi
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
+            // Emits app-universal-release.apk alongside the per-ABI ones, so a
+            // single assemble covers both the fat APK and the arm64-v8a APK.
+            isUniversalApk = buildAbi
         }
     }
 

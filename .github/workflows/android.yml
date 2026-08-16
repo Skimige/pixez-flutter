@@ -1,0 +1,149 @@
+name: Build Android
+
+on:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**.md'
+      - 'docs/**'
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      java_version:
+        description: 'Java version'
+        required: true
+        default: '17'
+      java_distribution:
+        description: 'Java distribution'
+        required: true
+        default: 'temurin'
+      verbose:
+        description: 'Run with verbose logging'
+        required: false
+        default: 'false'
+      build_appbundle:
+        description: 'Also build the Play Store AppBundle (.aab)'
+        type: boolean
+        required: false
+        default: false
+
+env:
+  KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+  ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
+  ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
+  CHAT_ID: ${{ secrets.CHAT_ID }}
+  BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+  VERBOSE: ${{ github.event.inputs.verbose == 'true' && '--verbose' || '' }}
+  APK_DIR: build/app/outputs/apk/release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ github.event.inputs.java_distribution || 'temurin' }}
+        java-version: ${{ github.event.inputs.java_version || '17' }}
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        cache: true
+
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Flutter Doctor
+      if: github.event.inputs.verbose == 'true'
+      run: flutter doctor -v
+
+    - name: Flutter Pub Get (rhttp)
+      working-directory: plugins/rhttp/rhttp
+      run: flutter pub get
+
+    - name: Flutter Build Runner (rhttp)
+      working-directory: plugins/rhttp/rhttp
+      run: dart run build_runner build --delete-conflicting-outputs
+
+    - name: Flutter Pub Get
+      run: flutter pub get
+
+    - name: Flutter Build Runner
+      run: flutter packages pub run build_runner build --delete-conflicting-outputs
+
+    - name: Flutter Test
+      continue-on-error: true
+      run: flutter test $VERBOSE
+
+    # One assemble emits the per-ABI APKs plus app-universal-release.apk, which
+    # is the fat APK. Building them separately costs a second full AOT compile.
+    - name: Flutter Build APKs
+      run: flutter build apk --split-per-abi $VERBOSE --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=true
+
+    - name: Verify APK Outputs
+      run: |
+        ls -lh "$APK_DIR"
+        for apk in app-universal-release.apk app-arm64-v8a-release.apk; do
+          test -s "$APK_DIR/$apk" || { echo "::error::missing or empty $apk"; exit 1; }
+        done
+
+    - name: Send APKs to me via Telegram
+      if: env.CHAT_ID != '' && env.BOT_TOKEN != ''
+      run: |
+        send() {
+          curl -sS "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" -X POST \
+            -F chat_id="$CHAT_ID" -F caption="[$2] $GITHUB_SHA" -F document="@$APK_DIR/$1" > /dev/null
+        }
+        send app-universal-release.apk "Fat APK"
+        send app-arm64-v8a-release.apk "arm64-v8a"
+
+    - name: Upload Fat APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-universal-release
+        path: ${{ env.APK_DIR }}/app-universal-release.apk
+        if-no-files-found: error
+
+    - name: Upload arm64-v8a APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-arm64-v8a-release
+        path: ${{ env.APK_DIR }}/app-arm64-v8a-release.apk
+        if-no-files-found: error
+
+    - name: Upload All APK Variants
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: ${{ env.APK_DIR }}/*.apk
+        if-no-files-found: error
+
+    # Play Store distribution only; not built on push. Runs off the warm Gradle
+    # and AOT state left by the APK build, so it is cheap to tack on here.
+    - name: Flutter Build AppBundle
+      if: github.event.inputs.build_appbundle == 'true'
+      run: flutter build appbundle $VERBOSE --dart-define=IS_GOOGLEPLAY=false --dart-define=BUILD_ABI=false
+
+    - name: Upload AppBundle
+      if: github.event.inputs.build_appbundle == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-aab
+        path: build/app/outputs/bundle/release/*.aab
+        if-no-files-found: error
