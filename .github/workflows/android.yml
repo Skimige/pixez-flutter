@@ -33,6 +33,8 @@ env:
   ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
   CHAT_ID: ${{ secrets.CHAT_ID }}
   BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+  TG_API_ID: ${{ secrets.TG_API_ID }}
+  TG_API_HASH: ${{ secrets.TG_API_HASH }}
   VERBOSE: ${{ github.event.inputs.verbose == 'true' && '--verbose' || '' }}
   APK_DIR: build/app/outputs/apk/release
   # org.gradle.caching is unset in android/gradle.properties, so build-cache-1
@@ -128,30 +130,17 @@ jobs:
           test -s "$APK_DIR/$apk" || { echo "::error::missing or empty $apk"; exit 1; }
         done
 
-    # Never fails the job: the APKs reach the artifacts either way. It does have
-    # to be loud though. The first version discarded the response, so when a file
-    # went over Telegram's bot upload limit the send was rejected and nothing
-    # anywhere said so; the only symptom was one APK that never arrived.
+    # continue-on-error here is deliberate and is not the pattern removed from the
+    # build steps: delivery is best effort because the APKs reach the artifacts
+    # regardless, and a failed step still shows up red in the run. What is not
+    # acceptable is a green step that quietly dropped a file, which is what the
+    # earlier curl version did by discarding the API response.
     - name: Send APKs to me via Telegram
-      if: env.CHAT_ID != '' && env.BOT_TOKEN != ''
+      if: env.CHAT_ID != '' && env.BOT_TOKEN != '' && env.TG_API_ID != ''
+      continue-on-error: true
       run: |
-        limit=$((50 * 1024 * 1024))
-        send() {
-          f="$APK_DIR/$1"
-          sz=$(stat -c%s "$f")
-          if [ "$sz" -gt "$limit" ]; then
-            echo "::error::$1 is $((sz / 1048576)) MiB, over Telegram's 50 MiB bot limit - not sent"
-            return
-          fi
-          resp=$(curl -sS "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" -X POST \
-            -F chat_id="$CHAT_ID" -F caption="[$2] $GITHUB_SHA" -F document="@$f")
-          case "$resp" in
-            *'"ok":true'*) echo "sent $1 ($((sz / 1048576)) MiB)" ;;
-            *) echo "::error::Telegram rejected $1: $resp" ;;
-          esac
-        }
-        send app-universal-release.apk "Fat APK"
-        send app-arm64-v8a-release.apk "arm64-v8a"
+        pip install --quiet telethon
+        python .github/scripts/send_telegram.py
 
     - name: Upload Fat APK
       uses: actions/upload-artifact@v4
