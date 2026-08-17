@@ -81,13 +81,20 @@ android {
         applicationId = packageName
         minSdk = flutter.minSdkVersion
         targetSdk = 37
-        versionCode = 10010060
-        versionName = "0.9.106 rr"
+        versionCode = 10010070
+        versionName = "0.9.107 material_ui"
         buildConfigField("boolean", "IS_GOOGLEPLAY", isGooglePlay.toString())
         ndk {
             abiFilters.clear()
         }
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     splits {
         abi {
             val buildAbi = dartEnvironmentVariables["BUILD_ABI"] as Boolean
