@@ -31,8 +31,7 @@ features = [
     "cookies",
     "form",
     "http2",
-    # HTTP/3 disabled: Quinn busy-loops on recvmsg after iOS backgrounding.
-    # https://github.com/Notsfsssf/pixez-flutter/issues/1110
+    "http3",
     "query",
     "rustls",
     "stream",
