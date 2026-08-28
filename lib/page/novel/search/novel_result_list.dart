@@ -89,6 +89,7 @@ class _NovelResultListState extends State<NovelResultList> {
     20000,
     30000,
     50000,
+    100000,
   ];
 
   final sort = ["date_desc", "date_asc", "popular_desc"];

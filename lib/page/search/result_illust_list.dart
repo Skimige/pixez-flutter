@@ -76,6 +76,7 @@ class _ResultIllustListState extends State<ResultIllustList> {
     20000,
     30000,
     50000,
+    100000,
   ];
   List<List<int>> premiumStarNum = [
     [],
